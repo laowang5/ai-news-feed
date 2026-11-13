@@ -142,6 +142,8 @@ export function apply(ctx: any, config: PluginConfig = {}) {
     llmBaseUrl: config.llmBaseUrl,
     llmApiKey: config.llmApiKey,
     llmModel: config.llmModel,
+    llmProvider: config.llmProvider,
+    llmTimeoutMs: config.llmTimeoutMs,
     maxScoresPerRun,
     scoreCalls,
     thresholds: thresholdRes.thresholds,
@@ -171,6 +173,17 @@ export function apply(ctx: any, config: PluginConfig = {}) {
       sourcesRecord[id] = item;
     }
 
+    const llmDiag = evaluator.getDiagnostics();
+    const llmAvailable = evaluator.isAvailable();
+    // A transport that exists but whose last call failed is NOT healthy: that
+    // state used to look identical to a working setup while scoring silently
+    // dropped every item.
+    const llmState: 'available' | 'missing' | 'misconfigured' = !llmAvailable
+      ? 'missing'
+      : llmDiag.last_error
+        ? 'misconfigured'
+        : 'available';
+
     const snapshot: FeedHealthSnapshot = {
       updated_at: new Date().toISOString(),
       sources: sourcesRecord,
@@ -178,10 +191,12 @@ export function apply(ctx: any, config: PluginConfig = {}) {
       pending_items: store.getPendingCount(),
       scored_items: store.getScoredCount(),
       insufficient_content_items: store.getInsufficientContentCount(),
+      scoring_failed_items: store.getFailedCount?.() ?? 0,
       store_path: store.getFilePath(),
       store_size_bytes: store.getFileSizeBytes(),
-      llm_available: evaluator.isAvailable(),
-      llm_state: evaluator.isAvailable() ? 'available' : 'missing',
+      llm_available: llmAvailable,
+      llm_state: llmState,
+      llm_backend: llmDiag.backend,
       is_syncing: isSyncing,
       sync_progress: isSyncing ? currentSyncProgress : undefined,
       budget: budgetTracker.getSnapshot(),
@@ -200,11 +215,20 @@ export function apply(ctx: any, config: PluginConfig = {}) {
       },
     };
 
+    if (llmDiag.route) snapshot.llm_route = llmDiag.route;
+    if (llmDiag.last_error) snapshot.llm_last_error = llmDiag.last_error;
+    if (llmDiag.last_error_at) snapshot.llm_last_error_at = llmDiag.last_error_at;
+    snapshot.llm_failed_calls = llmDiag.failed_calls;
+    snapshot.llm_ok_calls = llmDiag.ok_calls;
+
     if (thresholdRes.error === 'invalid_thresholds') {
       snapshot.invalid_thresholds = true;
     }
 
-    return snapshot;
+    // DSH rejects tool output that is not lossless JSON, which means any
+    // `undefined` value breaks the whole `get_feed_health` tool call. Strip
+    // them here so the agent-facing tool and the HTTP route agree.
+    return JSON.parse(JSON.stringify(snapshot)) as FeedHealthSnapshot;
   }
 
   // 3. Execution Pipeline (Fetch -> Ingest -> Hydrate -> Evaluate)
@@ -304,6 +328,13 @@ export function apply(ctx: any, config: PluginConfig = {}) {
               const currentPromptVersion = getPromptVersion();
               const scoreRes = await evaluator.scoreItemDetailed(item, effectiveRubric, { scoreCalls });
               if (!scoreRes || scoreRes.rawScores.length === 0) {
+                // A failed model call must not look identical to "no work due":
+                // record it so the health endpoint and the UI can explain why
+                // pending items are not shrinking.
+                const failure = evaluator.getDiagnostics().last_error;
+                await store.updatePendingItem(item.url_key, {
+                  skip_reason: failure ? `score_failed: ${failure}` : 'score_failed',
+                });
                 continue;
               }
               const rawScores = scoreRes.rawScores;

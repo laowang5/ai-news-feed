@@ -1,5 +1,5 @@
 {
-  "name": "@dsh-plugins/ai-news-feed",
+  "name": "ai-news-feed",
   "version": "1.0.0",
   "description": "AI News & Intelligence Feed plugin for DeepSeek Harness (DSH)",
   "license": "MIT",

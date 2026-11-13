@@ -15,6 +15,7 @@ import { adjustScore, sourceWeight } from '../src/scoring/adjust.js';
 import { DEFAULT_TOPICS } from '../src/scoring/topics.js';
 import { writeCopy } from '../src/scoring/write.js';
 import { IngestorManager } from '../src/ingestor/manager.js';
+import { DEFAULT_SOURCES_YAML } from '../src/ingestor/default-sources.js';
 
 function createTempDir(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -589,7 +590,10 @@ describe('v1.0.0 Daily Briefing Specification Tests', () => {
   });
 
   it('W3 源权重 & 抓取窗口: aihot is tier_a (1.15) with maxItemsPerRun=2 while other 5 sources keep 20/15/20/20/20', () => {
-    const dataYaml = YAML.parse(fs.readFileSync(path.resolve(process.cwd(), 'data/sources.yaml'), 'utf8'));
+    // Parse the shipped template rather than `data/sources.yaml`: that file is
+    // gitignored (it is runtime state, generated on first run), so reading it
+    // made this test fail on every fresh clone and in CI.
+    const dataYaml = YAML.parse(DEFAULT_SOURCES_YAML);
     const sources: any[] = dataYaml?.sources || [];
     assert.strictEqual(sources.length, 6);
 

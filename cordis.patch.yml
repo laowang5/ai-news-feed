@@ -1,4 +1,4 @@
 - insert:
     - id: ai-news-feed
-      name: '@dsh-plugins/ai-news-feed'
+      name: 'ai-news-feed'
       config: {}

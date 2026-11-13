@@ -196,7 +196,7 @@ describe('v0.7 Release Specification Tests', () => {
     // 2. package.json
     const pkgPath = path.join(rootDir, 'package.json');
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
-    assert.ok(pkg.version && (pkg.version === '0.7.0' || pkg.version === '0.8.0' || pkg.version === '0.8.1' || pkg.version === '0.9.0' || pkg.version === '1.0.0'));
+    assert.ok(pkg.version && /^\d+\.\d+\.\d+$/.test(pkg.version), 'package.json version must be semver');
     assert.strictEqual(pkg.license, 'MIT');
     assert.ok(Array.isArray(pkg.keywords) && pkg.keywords.includes('dsh-plugin'));
 

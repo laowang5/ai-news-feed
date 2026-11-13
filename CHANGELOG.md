@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **语言默认跟随系统与全量双语化（W4）**：`display.language` 默认改为 `'auto'`，新增 `POST /dsh-plugins/ai-news-feed/language` 路由并与 `/topics` 共用 `preferences.json` 读-合并-写持久化；抽屉内联完整 `I18N.zh` / `I18N.en` 双语字典。
 - **抽屉就地设置面板（W5）**：右上角与主题摘要行新增 `⚙` 设置入口，就地展开语言三态切换、关注主题勾选与只读门槛展示（`health.thresholds`）。
 - **标题双语文案（摘要保持单语）**：`writeCopy` 单次调用产出 `title_zh`/`title_en` 双标题，解决中文源（AIHot 日报）在英文模式下没有英文标题可显示的问题；摘要与 `why_it_matters` 仍按 `display.language` 单语生成——同一次调用写两份译文属重复开销（输出 token 翻倍且收益为零），已回退；前端 `resolveCardTitles` 在 `en` 模式下优先 `title_en`，缺失时回落原文标题。
+- **评分静默失效（关键）**：`NewsEvaluator` 旧实现只判断宿主是否存在 LLM 服务，就去调用 `llm.call()` —— 而宿主 `LlmRuntime` 根本没有 `call()` 方法，只有 `prepareCall()` + `stream()`。失败被 `continue` 吞掉，导致条目永久停留在 `pending`、`budget.used` 恒为 0、且零报错。现改为三态探测：`host-stream`（默认，走宿主 `prepareCall`/`stream`，用户零配置）/ `fetch`（`llmBaseUrl` + `llmApiKey` 直连）/ `none`，并新增 `getDiagnostics()` 暴露 `backend`、`route`、`last_error`、`ok_calls`、`failed_calls`。
+- **模型路由自动解析**：新增 `resolveRoute()`，按「显式配置 → 宿主 `agentDefaultModel.currentSelection()` → 按模型名匹配 provider → 单 provider 取首个模型」顺序解析，并缓存结果；无法解析时抛出可读错误而非静默失败。
+- **失败条目可追踪**：评分失败的条目现在写入 `skip_reason: score_failed: <原因>`，并在 `health.scoring_failed_items` 中计数，不再无声消失。
+- **`get_feed_health` 工具对所有用户报错**：`value is not lossless JSON`。根因是快照里塞了 `undefined`（`sync_progress`、`schedule.reason`），DSH 工具输出校验器拒绝该值。现统一用 `JSON.parse(JSON.stringify(...))` 收口。
+- **抽屉状态区分「没有模型」与「模型坏了」**：`health.llm_state` 新增 `misconfigured` 态，顶部红色提示条展示 `health.llm_last_error`；原文案把两者混为一谈。
+- **HN 信源偶发 0 命中**：`src/ingestor/hn.ts` 增加 3 次重试（429/5xx/网络异常，线性退避），单关键词失败不再中断整个信源；同时修复 `created_at_i` 缺失时 `new Date(undefined * 1000)` 抛 `RangeError` 的隐患。
+
 
 ## [0.9.0] - 2026-11-13
 

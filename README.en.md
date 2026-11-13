@@ -1,8 +1,8 @@
-# @dsh-plugins/ai-news-feed
+# ai-news-feed
 
 > **What it is**: An all-in-one native AI intelligence & news feed plugin for DeepSeek Harness (DSH), with zero external Python or background process dependencies.  
 > **What it gives you**: Configurable multi-source automated fetching + 5-axis LLM quantitative evaluation + realtime sidebar drawer + automated in-session morning and evening briefings.  
-> **How to install**: `dsh plugin add @dsh-plugins/ai-news-feed` (or configure in `cordis.yml`).  
+> **How to install**: `dsh plugin --profile desktop add "file:<source-path>"`.  
 > **Version**: v1.0.0 · MIT · no external process dependencies
 
 ![AI News Feed · sidebar drawer](assets/ai-news-feed.png)
@@ -25,60 +25,75 @@
 
 ### 1. Requirements
 
-Development dependencies:
+- **DSH** with the `@deepseek-ai/dsh-llm` service (any current desktop build).
+- **Node.js 22+** and **pnpm** for building from source.
+- A model selected in the DSH session (for scoring). Without one the plugin still runs in raw-stream mode.
 
-```
-    "@types/node": "^22.10.0",
-
-    "@types/react": "^19.0.0",
-
-    "@types/react-dom": "^19.3.0",
-
-    "esbuild": "^0.28.2",
-
-    "react": "^19.0.0",
-
-    "react-dom": "^19.3.1",
-
-    "tsdown": "^0.6.0",
-
-    "tsx": "^4.23.15",
-```
+The build toolchain is `typescript` + `react`/`react-dom` types + `tsx` for tests; `pnpm install` sets all of it up — nothing else to install manually.
 
 ### 2. Installation
 
-#### Method A: Via DSH CLI (Recommended)
-```bash
-dsh plugin add @dsh-plugins/ai-news-feed
-```
+> **Note**: This package is **not published to npm** — it is installed from a source checkout only. Registry installs such as `dsh plugin add ai-news-feed` **do not apply**; use one of the methods below.
 
-#### Method B: Local Development & Source Installation
+#### Method A: Install from the source directory (recommended)
+
 ```bash
 git clone https://github.com/laowang5/ai-news-feed.git
 cd ai-news-feed
 pnpm install
 pnpm build
+
+# Install this directory as a local package into the desktop profile
+dsh plugin --profile desktop add "file:$(pwd)"
 ```
 
-Enable the plugin in your DSH configuration (e.g. `~/.dsh/profiles/desktop/cordis.yml`):
+`dsh plugin add "file:<path>"` does three things automatically: writes the package into the profile `dependencies`, appends it to `dsh.profile.bundles`, and copies the build output into `node_modules` via pnpm. The plugin then **hot-loads** — no application restart required.
+
+> 💡 Already have a local clone? Just run `dsh plugin --profile desktop add "file:<existing checkout>"` — no need to download another copy.
+>
+> 💡 To pick up code changes you must `pnpm build` and `add` again (pnpm skips the reinstall when the version number is unchanged, so `remove` before `add` when swapping build output).
+
+#### Method B: Mount manually in the profile
+
+If you prefer not to use the CLI, edit the profile's `cordis.patch.yml` (**not** `cordis.yml`):
+
 ```yaml
-plugins:
-  "@dsh-plugins/ai-news-feed":
-    # Optional custom configuration
+# ~/.dsh/profiles/desktop/cordis.patch.yml
+- id: ai-news-feed
+  name: "ai-news-feed"
+  config:
     syncIntervalMinutes: 60
+    firstSyncDelaySeconds: 5
     dailyModelCallBudget: 120
 ```
 
-#### ⚠️ Important Step: Completely Restart Desktop App
+> ⚠️ Common mistake: `cordis.yml` is a generated, read-only merge result whose own header says "edit cordis.patch.yml, not this file". Adding a plugin there has no effect. Also, the patch file's top level is a **YAML array** (`- id:` / `- insert:`), not a `plugins:` mapping.
+>
+> A manual mount only writes the patch; the package still has to exist in `node_modules` (the `name` must resolve to a real directory) or the host will fail to load it. So prefer Method A unless you have already installed once that way.
 
-**After installing or upgrading the plugin, you must completely quit DeepSeek Harness (Cmd+Q on macOS) and relaunch it.** Merely reloading the browser window will NOT take effect, because the host's client boot manifest is generated when the DSH host process initializes.
+#### ✅ No restart needed
 
-**Self-Check Verification (DevTools Console):**
-Open Developer Tools in DSH (Console), and run the following command:
-```js
-window.__DSH_BOOT__.entries.map(e => e.id)
+Current DSH hot-loads plugins through the **bundle patch**: after install or upgrade the host re-reads the patch and mounts the service, so the sidebar entry is available immediately. Refresh the page to pick up a new build — you do not need to quit the app.
+
+Only if your host version genuinely lacks hot-loading (older builds) should you consider a full restart.
+
+**Self-check:**
+
+```bash
+# 1. Is the plugin registered? (expect state: live)
+curl http://127.0.0.1:12333/dsh-market/installed
+
+# 2. The plugin's own health endpoint
+curl http://127.0.0.1:12333/dsh-plugins/ai-news-feed/health
 ```
-The output array must include `'@dsh-plugins/ai-news-feed'`. If it is absent, the plugin has not been registered in the active profile or the DSH desktop app has not been completely restarted.
+
+In `health`, pay attention to three fields:
+
+| Field | Meaning |
+|---|---|
+| `llm_state` | `available` fine / `missing` no usable model / `misconfigured` a model exists but calls are failing |
+| `llm_backend` | `host-stream` uses the host LLM (zero config) / `fetch` uses a custom API / `none` |
+| `llm_last_error` | The concrete error when `misconfigured` — tells you which model name or provider is wrong |
 
 ---
 
@@ -100,6 +115,22 @@ All options can be customized in `PluginConfig`:
 | `display.topics` | `string[]` | `['agent-infra','model-release']` | Focus topics; affects the score boost and the angle of "why it matters". |
 | `fetchArticle.enabled` | `boolean` | `true` | Fetch the article body before scoring (5s timeout + 1 retry); items under 400 characters are skipped as `insufficient_content`. |
 | `storePath` | `string` | `<dataDir>/signals.json` | Path to persistent JSON store. |
+
+### LLM configuration (`llm*`)
+
+**Zero config by default**: as long as a default model is selected in the DSH session, the plugin inherits it automatically via the host's `agentDefaultModel` service. None of the options below are needed unless you want to **pin a different model** (say, a cheaper small model dedicated to scoring).
+
+| Option | Type | Default | Purpose |
+|---|---|---|---|
+| `llmModel` | `string` | inherits the session default | Model name used for scoring, e.g. `deepseek-chat`. Setting it overrides only the model; the provider is still resolved from the host. |
+| `llmProvider` | `string` | auto-resolved | Provider that owns the model, e.g. `deepseek` / `openai`. Use it to disambiguate when the same model name exists under several providers. |
+| `llmBaseUrl` | `string` | none | Fill in to call an **external OpenAI-compatible HTTP endpoint**, e.g. `http://127.0.0.1:3425/v1`. Together with `llmApiKey` this bypasses the host LLM. |
+| `llmApiKey` | `string` | none | Bearer token used with `llmBaseUrl`. **Only takes effect when both `llmBaseUrl` and `llmApiKey` are set**; a key alone does nothing and the plugin stays on the host model. |
+| `llmTimeoutMs` | `number` | `60000` | Per-call timeout in milliseconds. Raise it for slow models or long summaries. |
+
+> **Three backends (`health.llm_backend`)**: `host-stream` = the host LLM service (default, zero config); `fetch` = direct call to `llmBaseUrl`; `none` = neither is usable, so the plugin degrades to "raw stream" mode where every item is labelled "⏳ Unscored" while fetching, sorting and reading still work normally.
+>
+> If `llmModel` or `llmProvider` is wrong, `health.llm_state` becomes `misconfigured`, a red banner appears at the top of the drawer with the concrete error, and items are tagged `skip_reason: score_failed: <reason>` — instead of silently sitting in `pending` forever as older builds did.
 
 ### Default Thresholds (`thresholds`)
 
@@ -236,6 +267,8 @@ The plugin registers 7 powerful tools with the DSH host, which the Agent can inv
 
 ### Q1: Can I use this plugin without configuring an LLM service?
 **Yes, absolutely.** The plugin features Graceful Zero-LLM Degradation. If no LLM service or API key is available, the drawer defaults to the "Raw Stream" showing unscored signals sorted by source authority (e.g. OpenAI blog prioritised over generic feeds) and recency, ensuring new users never see a blank screen.
+
+> In practice you almost certainly **do not need to configure anything**: the plugin inherits the model currently selected in the session. Manual `llmBaseUrl` + `llmApiKey` is only required when `health.llm_backend` is `none`.
 
 ### Q2: How is the daily 120 model call budget measured? What happens when it runs out?
 - **Measurement**: Actual physical calls made to the LLM API. The scoring step consumes 2 calls per item (mean), and the copywriting step consumes 1 call. A 120-call budget supports in-depth evaluation of approximately **40 featured items per day**.

@@ -117,7 +117,23 @@ export interface FeedHealthSnapshot {
   prompt_version?: string;
 
   // v0.7 release additions
-  llm_state?: 'available' | 'missing';
+  /**
+   * Whether scoring can run at all. `available` means a usable transport was
+   * found; `missing` means none exists. `misconfigured` means a transport
+   * exists but the last call failed, so scoring is silently broken.
+   */
+  llm_state?: 'available' | 'missing' | 'misconfigured';
+  /** Which transport scoring uses: host-stream, host-call, fetch, or none. */
+  llm_backend?: 'host-stream' | 'host-call' | 'fetch' | 'none';
+  /** Resolved provider/model actually scoring items. */
+  llm_route?: { provider: string; model: string };
+  /** Last scoring failure, so a broken model route is visible instead of silent. */
+  llm_last_error?: string;
+  llm_last_error_at?: string;
+  llm_failed_calls?: number;
+  llm_ok_calls?: number;
+  /** Items skipped because their model call failed. */
+  scoring_failed_items?: number;
   is_syncing?: boolean;
   sync_progress?: SyncProgress;
   budget?: BudgetSnapshot;
@@ -153,6 +169,8 @@ export interface PluginConfig {
   llmBaseUrl?: string;
   llmApiKey?: string;
   llmModel?: string;
+  llmProvider?: string;
+  llmTimeoutMs?: number;
 
   // v0.9 & v1.0 display / topic personalization config
   appearance?: AppearanceMode;

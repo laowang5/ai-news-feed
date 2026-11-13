@@ -1,8 +1,8 @@
-# @dsh-plugins/ai-news-feed
+# ai-news-feed
 
 > **是什么**：DeepSeek Harness (DSH) 原生一体化的端到端 AI 前沿情报流插件，零外部 Python/进程依赖。  
 > **给我什么**：可配置信源自动抓取 + 大模型五轴量化研判打分 + 侧栏实时抽屉阅读 + 每日会话内晨报/晚报主动推送。  
-> **怎么装**：`dsh plugin add @dsh-plugins/ai-news-feed`（或在 `cordis.yml` 中配置启用）。  
+> **怎么装**：从源码目录安装 `dsh plugin --profile desktop add "file:<源码路径>"`。  
 > **版本**：v1.0.0 · MIT · 零外部进程依赖
 
 ![AI 情报流 · 侧栏抽屉](assets/ai-news-feed.png)
@@ -23,62 +23,77 @@
 
 ## 🚀 快速上手
 
-### 1. 开发环境要求
+### 1. 环境要求
 
-开发环境依赖项：
+- **DSH** 版本需带 `@deepseek-ai/dsh-llm` 服务（当前桌面端都满足）。
+- 从源码构建需要 **Node.js 22+** 与 **pnpm**。
+- 在 DSH 会话里选好一个默认模型（用于评分）。没选也能跑，只是降级为原始流模式。
 
-```
-    "@types/node": "^22.10.0",
-
-    "@types/react": "^19.0.0",
-
-    "@types/react-dom": "^19.3.0",
-
-    "esbuild": "^0.28.2",
-
-    "react": "^19.0.0",
-
-    "react-dom": "^19.3.1",
-
-    "tsdown": "^0.6.0",
-
-    "tsx": "^4.23.15",
-```
+构建链就是 `typescript` + `react`/`react-dom` 类型 + `tsx`（跑测试），`pnpm install` 一次装齐，不需要额外手动装别的东西。
 
 ### 2. 安装插件
 
-#### 方式 A：通过 DSH CLI（推荐）
-```bash
-dsh plugin add @dsh-plugins/ai-news-feed
-```
+> **注意**：本包**不发布到 npm**，只通过源码目录安装。`dsh plugin add ai-news-feed` 这类按包名从 registry 拉取的写法**不适用**，请用下面的方式。
 
-#### 方式 B：本地开发与源码安装
+#### 方式 A：从源码目录安装（推荐）
+
 ```bash
 git clone https://github.com/laowang5/ai-news-feed.git
 cd ai-news-feed
 pnpm install
 pnpm build
+
+# 把本目录作为本地包装进 desktop profile
+dsh plugin --profile desktop add "file:$(pwd)"
 ```
 
-在你的 DSH 配置文件（如 `~/.dsh/profiles/desktop/cordis.yml`）中添加插件：
+`dsh plugin add "file:<path>"` 会自动做三件事：把包写进 profile 的 `dependencies`、追加到 `dsh.profile.bundles`、用 pnpm 把构建产物复制进 `node_modules`。装完后插件即可**热加载**，不需要重启应用。
+
+> 💡 已经在本地 clone 过的话，直接 `dsh plugin --profile desktop add "file:<已有的仓库路径>"` 即可，不必再下一份。
+>
+> 💡 改完代码要生效，必须重新 `pnpm build` 后再次 `add`（pnpm 看到版本号没变会跳过重装，换产物时先 `remove` 再 `add`）。
+
+#### 方式 B：手动挂载到 profile
+
+如果不想用 CLI，可以直接编辑 profile 的 `cordis.patch.yml`（**不是** `cordis.yml`）：
+
 ```yaml
-plugins:
-  "@dsh-plugins/ai-news-feed":
-    # 可选自定义配置
+# ~/.dsh/profiles/desktop/cordis.patch.yml
+- id: ai-news-feed
+  name: "ai-news-feed"
+  config:
     syncIntervalMinutes: 60
+    firstSyncDelaySeconds: 5
     dailyModelCallBudget: 120
 ```
 
-#### ⚠️ 重要步骤：完全重启桌面端
+> ⚠️ 常见误区：`cordis.yml` 是宿主生成的只读合并结果，里面写着「改我无效，请改 cordis.patch.yml」。往 `cordis.yml` 里加插件不会生效。另外 patch 文件的顶层是一个 **YAML 数组**（`- id:` / `- insert:`），不是 `plugins:` 映射。
+>
+> 手动挂载只写了 patch，还需要 `node_modules` 里有这个包（`name` 要能解析到真实目录），否则宿主加载会失败。所以除非你已经用方式 A 装过一次，否则优先用方式 A。
 
-**安装或升级插件后，必须完全退出 DeepSeek Harness 桌面应用（macOS 下按 `Cmd+Q`）并重新启动。** 仅通过快捷键刷新前端窗口无法生效，因为宿主的客户端启动清单（boot manifest）是在 DSH 主进程启动时生成的。
+#### ✅ 不需要重启桌面端
 
-**用户自查验证（DevTools Console）：**
-在 DSH 桌面端打开开发者工具（Console），执行以下命令：
-```js
-window.__DSH_BOOT__.entries.map(e => e.id)
+当前 DSH 通过 **bundle patch 热加载**插件：安装或更新后，宿主会重新读取 patch 并挂载服务，侧栏入口立即可用。刷新页面即可看到新版本，无需退出应用。
+
+如果你的宿主版本确实没有热加载（旧版本），再考虑完整重启。
+
+**自查验证：**
+
+```bash
+# 1. 插件是否注册成功（应返回 state: live）
+curl http://127.0.0.1:12333/dsh-market/installed
+
+# 2. 插件自身健康检查
+curl http://127.0.0.1:12333/dsh-plugins/ai-news-feed/health
 ```
-输出列表中应包含 `'@dsh-plugins/ai-news-feed'`。若不包含，说明插件尚未在当前 profile 中正确注册或 DSH 进程尚未完全重启。
+
+`health` 里重点看三个字段：
+
+| 字段 | 含义 |
+|---|---|
+| `llm_state` | `available` 正常 / `missing` 没有可用模型 / `misconfigured` 有模型但调用失败 |
+| `llm_backend` | `host-stream` 走宿主 LLM（零配置）/ `fetch` 走自定义 API / `none` |
+| `llm_last_error` | `misconfigured` 时的具体报错，用于定位模型名或 provider 写错 |
 
 ---
 
@@ -100,6 +115,22 @@ window.__DSH_BOOT__.entries.map(e => e.id)
 | `display.topics` | `string[]` | `['agent-infra','model-release']` | 关注方向，影响评分加权与「为什么重要」的写作侧重。 |
 | `fetchArticle.enabled` | `boolean` | `true` | 评分前抓取原文正文（5s 超时 + 1 次重试）；正文不足 400 字符的条目跳过模型调用并标记 `insufficient_content`。 |
 | `storePath` | `string` | `<dataDir>/signals.json` | 信号持久化存储路径。 |
+
+### 大模型配置 (`llm*`)
+
+**默认零配置**：只要 DSH 会话里选好了默认模型，插件就会自动继承它（通过宿主的 `agentDefaultModel` 服务），不需要填写下面任何一项。下面这些只在你需要**指定一个不同的模型**（比如用便宜的小模型专门打分）时才需要。
+
+| 参数名 | 类型 | 默认值 | 作用说明 |
+|---|---|---|---|
+| `llmModel` | `string` | 继承会话默认模型 | 打分用的模型名，如 `deepseek-chat`。填了它就只覆盖模型，provider 仍会从宿主里自动匹配。 |
+| `llmProvider` | `string` | 自动匹配 | 模型所属 provider，如 `deepseek` / `openai`。同名模型存在于多个 provider 时用它消除歧义。 |
+| `llmBaseUrl` | `string` | 无 | 走 OpenAI 兼容的**外部 HTTP 接口**时填写，如 `http://127.0.0.1:3425/v1`。填了它并且 `llmApiKey` 也填了，插件就绕过宿主 LLM 直连这个地址。 |
+| `llmApiKey` | `string` | 无 | 配合 `llmBaseUrl` 的 Bearer token。**只有 `llmBaseUrl` + `llmApiKey` 同时存在才会走直连**；只填 Key 不填地址不会生效，插件仍走宿主模型。 |
+| `llmTimeoutMs` | `number` | `60000` | 单次模型调用超时（毫秒）。慢模型或长文摘要可调大。 |
+
+> **三种后端（`health.llm_backend`）**：`host-stream` = 走宿主 LLM 服务（默认，零配置）；`fetch` = 直连 `llmBaseUrl`；`none` = 两者都不可用，此时插件降级为「原始流」模式，条目全部标注「⏳ 未评分」，但抓取、排序、阅读完全正常。
+>
+> 如果你写错了 `llmModel` 或 `llmProvider`，`health.llm_state` 会变成 `misconfigured`，抽屉顶部弹出红色提示条并附上具体报错，条目会被标上 `skip_reason: score_failed: <原因>`——不会像旧版那样静默卡在 `pending`。
 
 ### 门槛配置默认值 (`thresholds`)
 
@@ -236,6 +267,8 @@ sources:
 
 ### Q1: 如果我没有配置大模型服务，插件还能正常工作吗？
 **能，完全可用。** 插件具备 Graceful Zero-LLM Degradation（零模型平稳可用）机制。若宿主未注入 LLM 且未提供 API Key，侧栏会自动展示「原始流」，条目标注「⏳ 未评分」，并根据信源权重（如 OpenAI 博客优先于普通流）与发布时间综合排序，保证新装用户绝不面对空白页面。
+
+> 补充：绝大多数情况下你**不需要配置**。插件会继承会话当前选中的默认模型。只有当 `health.llm_backend` 为 `none` 时，才需要手动填 `llmBaseUrl` + `llmApiKey`（或用会话默认模型）。
 
 ### Q2: 每日 120 次模型调用预算是如何计量的？用完了会怎样？
 - **计量口径**：实际调用 LLM 的物理次数。打分阶段单条消耗 2 次调用（取均值），摘要阶段消耗 1 次调用。120 次预算约可支持每天研判 **40 条精选深度情报**。

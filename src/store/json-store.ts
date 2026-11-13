@@ -62,6 +62,19 @@ export class JsonStore {
     return this.items.filter((i) => i.status === 'pending' && i.skip_reason === 'insufficient_content').length;
   }
 
+  /**
+   * Count pending items whose LLM scoring call failed.
+   *
+   * These are separable from `getInsufficientContentCount()` on purpose: a
+   * content problem is permanent and expected, whereas a scoring failure means
+   * the configured model route is broken and the user needs to be told.
+   */
+  public getFailedCount(): number {
+    return this.items.filter(
+      (i) => i.status === 'pending' && typeof i.skip_reason === 'string' && i.skip_reason.startsWith('score_failed')
+    ).length;
+  }
+
   public getFileSizeBytes(): number {
     try {
       if (fs.existsSync(this.filePath)) {

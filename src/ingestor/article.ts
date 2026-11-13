@@ -118,7 +118,7 @@ export async function fetchArticleContent(url: string, opts: FetchArticleOptions
         redirect: 'follow',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'ai-news-feed/0.9 (+https://github.com/dsh-plugins/ai-news-feed)',
+          'User-Agent': 'ai-news-feed/0.9 (+https://github.com/laowang5/ai-news-feed)',
           Accept: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5',
         },
       });

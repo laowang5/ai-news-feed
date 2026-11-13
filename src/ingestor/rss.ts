@@ -3,7 +3,7 @@ import type { SourceConfig } from '../types.js';
 import type { IngestorResult, RawFeedItem } from './types.js';
 import { parseDigestItems, toLocalDateString } from './aihot-digest.js';
 
-const USER_AGENT = 'ai-news-feed/0.5.1 (+https://github.com/dsh-plugins/ai-news-feed)';
+const USER_AGENT = 'ai-news-feed/0.5.1 (+https://github.com/laowang5/ai-news-feed)';
 
 /**
  * Clean text from raw HTML snippets, removing script/style tags and decoding entities.

@@ -43,6 +43,9 @@ function registerClient() {
       mark_all_read: '全部已读',
       sync_progress: '同步中 ({completed}/{total}): {source}...',
       no_llm_banner: '⚠️ 未检测到大模型服务，当前今日必看为空，可在下方原始流查看未评分条目。',
+      llm_broken_banner:
+        '⚠️ 大模型调用失败（{error}），评分已暂停。请检查插件配置里的 llmModel / llmProvider，或稍后重试。',
+      llm_route_hint: '评分模型：{route}',
       budget_exhausted_banner: '💰 今日大模型调用预算已达上限（{used}/{limit} 次），新动态保持原始展示，次日零点自动重置。',
       briefing_heading: '📌 今日必看 ({count}/5)',
       sync_now: '⚡ 立即同步',
@@ -117,6 +120,9 @@ function registerClient() {
       mark_all_read: 'Mark all read',
       sync_progress: 'Syncing ({completed}/{total}): {source}...',
       no_llm_banner: '⚠️ No LLM service detected. Daily Briefing is empty; browse unscored items below.',
+      llm_broken_banner:
+        '⚠️ LLM calls are failing ({error}), so scoring is paused. Check llmModel / llmProvider in the plugin config, or retry later.',
+      llm_route_hint: 'Scoring model: {route}',
       budget_exhausted_banner: '💰 Daily LLM call budget exhausted ({used}/{limit}). New items remain unscored until midnight reset.',
       briefing_heading: '📌 Daily Briefing ({count}/5)',
       sync_now: '⚡ Sync Now',
@@ -422,7 +428,7 @@ function registerClient() {
   }
 
   window.__ModuleLoader__.load({
-    id: '@dsh-plugins/ai-news-feed',
+    id: 'ai-news-feed',
     factory(require: any) {
       const React = require('react');
       const ReactDOM = require('react-dom');
@@ -1057,6 +1063,7 @@ function registerClient() {
         if (!isOpen) return null;
 
         const isNoLlm = health?.llm_state === 'missing';
+        const isLlmBroken = health?.llm_state === 'misconfigured';
         const isBudgetExhausted = health?.budget && health.budget.remaining <= 0;
         const isSyncing = health?.is_syncing;
         const syncProgress = health?.sync_progress;
@@ -1386,6 +1393,41 @@ function registerClient() {
                       },
                       formatThresholdsSummary(health?.thresholds, effectiveLang)
                     )
+                  ),
+                  // 评分实际使用的模型。以前这个 i18n 键只存在于字典里、
+                  // 从未被渲染，用户看不到插件到底在用哪个模型打分。
+                  h(
+                    'div',
+                    {
+                      style: {
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px',
+                      },
+                    },
+                    h(
+                      'span',
+                      { style: { color: 'var(--dsw-alias-label-secondary, #475569)', fontWeight: 500 } },
+                      t('llm_route_hint', effectiveLang, {
+                        route: health?.llm_route
+                          ? `${health.llm_route.provider} / ${health.llm_route.model}`
+                          : health?.llm_backend === 'fetch'
+                            ? 'llmBaseUrl'
+                            : '—',
+                      })
+                    ),
+                    h(
+                      'span',
+                      {
+                        style: {
+                          fontSize: '10.5px',
+                          color: 'var(--dsw-alias-label-tertiary, #94a3b8)',
+                          flexShrink: 0,
+                        },
+                      },
+                      health?.llm_backend || 'none'
+                    )
                   )
                 )
               : null,
@@ -1541,6 +1583,28 @@ function registerClient() {
                     },
                   },
                   t('no_llm_banner', effectiveLang)
+                )
+              : null,
+
+            // A configured-but-failing model route used to look exactly like a
+            // healthy install: the banner never appeared and items piled up
+            // unscored. Surface the failure instead of staying silent.
+            isLlmBroken
+              ? h(
+                  'div',
+                  {
+                    style: {
+                      padding: '8px 14px',
+                      backgroundColor: 'var(--dsw-alias-bg-layer-2, #fee2e2)',
+                      color: 'var(--dsw-alias-state-error-primary, #991b1b)',
+                      fontSize: '12px',
+                      lineHeight: '1.4',
+                      borderBottom: '1px solid var(--dsw-alias-border-l1, #fecaca)',
+                    },
+                  },
+                  t('llm_broken_banner', effectiveLang, {
+                    error: health?.llm_last_error || 'unknown error',
+                  })
                 )
               : null,
 
