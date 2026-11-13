@@ -1,0 +1,11 @@
+# 与 rubric.md 配套的机器可读部分；只放"代码要用的数"，不放规则文字
+selection:
+  thresholds: { featuredMinScore: 80, sTierScore: 85, browseMinScore: 60 }
+  featuredMaxItems: 20
+  scoreCalls: 2
+sourceWeights:
+  tier_a: 1.15
+  tier_b: 1.0
+  tier_c: 0.75
+  default: 0.9
+trackingPenalty: -15

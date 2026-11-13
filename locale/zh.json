@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "title": "AI 资讯情报流 (AI News Feed)",
+    "description": "DeepSeek Harness 扩展插件。提供全网 AI 资讯聚合、前沿动态大模型打分、S 级高价值信号筛选与会话智能注入。",
+    "detail": "docs/DETAIL.md"
+  },
+  "ui": {
+    "title": "AI 情报流",
+    "s_tier_tab": "🔥 S级精选 (≥85分)",
+    "latest_tab": "⚡ 最新流",
+    "unscored_badge": "⏳ 未评分",
+    "empty_title": "暂无符合筛选条件的动态",
+    "empty_desc": "点击下方按钮立即触发全网 6 大信源同步抓取，首次同步约需数秒。",
+    "sync_now": "🚀 立即同步全源",
+    "syncing": "同步中",
+    "no_llm_notice": "未检测到可用的大模型服务，当前展示原始信源流。配置 LLM 后将自动开启智能打分与精选。",
+    "budget_exhausted_notice": "今日大模型调用预算已达上限，新动态保持原始展示，次日零点自动重置。",
+    "inject_button": "💬 引入对话",
+    "copy_button": "📋 复制"
+  },
+  "tools": {
+    "get_top_ai_news": {
+      "description": "获取近期高价值 AI 资讯动态与研判摘要",
+      "limit": "返回条数",
+      "minScore": "最低评分门槛",
+      "category": "类别或技术标签"
+    },
+    "search_ai_signals": {
+      "description": "在情报信号库中全文检索特定主题或突破",
+      "keyword": "关键词",
+      "limit": "最多返回条数"
+    },
+    "trigger_feed_sync": {
+      "description": "立即触发 AI 新闻源的异步拉取与评分流水线",
+      "sources": "指定信源 ID 列表",
+      "forceScore": "是否强制重新评分"
+    },
+    "get_feed_health": {
+      "description": "获取当前 AI 情报流订阅源的健康状态、成功率及存储统计"
+    },
+    "enable_briefing": {
+      "description": "为当前会话启用 AI 晨报与晚报定时提醒（利用宿主 schedule 服务原会话投递）",
+      "morning": "晨报推送时间，格式 HH:mm:ss，默认 08:00:00",
+      "evening": "晚报推送时间，格式 HH:mm:ss，默认 20:00:00",
+      "timeZone": "IANA 时区名称（如 Asia/Shanghai），默认取系统时区"
+    },
+    "disable_briefing": {
+      "description": "关闭当前会话的 AI 晨报与晚报定时提醒，解除会话归档拦截"
+    },
+    "get_briefing_prompt": {
+      "description": "获取标准的 AI 晨报或晚报生成 Prompt 模板（用于指导 Agent 结构化输出）",
+      "kind": "简报类型：morning（晨报）或 evening（晚报）"
+    }
+  }
+}

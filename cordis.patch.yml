@@ -1,0 +1,4 @@
+- insert:
+    - id: ai-news-feed
+      name: '@dsh-plugins/ai-news-feed'
+      config: {}

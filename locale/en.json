@@ -1,0 +1,55 @@
+{
+  "meta": {
+    "title": "AI News Feed",
+    "description": "DeepSeek Harness extension plugin. Delivers multi-source AI news aggregation, LLM-based intelligence scoring, S-tier discovery, and seamless conversation context injection.",
+    "detail": "docs/DETAIL.md"
+  },
+  "ui": {
+    "title": "AI News Feed",
+    "s_tier_tab": "🔥 S-Tier (≥85)",
+    "latest_tab": "⚡ Latest Feed",
+    "unscored_badge": "⏳ Unscored",
+    "empty_title": "No signals matching criteria",
+    "empty_desc": "Click the button below to trigger real-time synchronization across all 6 sources.",
+    "sync_now": "🚀 Sync All Sources Now",
+    "syncing": "Syncing",
+    "no_llm_notice": "No LLM service detected. Showing raw multi-source stream. Configure LLM to enable AI scoring and summaries.",
+    "budget_exhausted_notice": "Daily model budget reached. New items are displayed raw and will refresh at local midnight.",
+    "inject_button": "💬 Quote",
+    "copy_button": "📋 Copy"
+  },
+  "tools": {
+    "get_top_ai_news": {
+      "description": "Retrieve recent high-signal AI news and research summaries",
+      "limit": "Number of items",
+      "minScore": "Minimum relevance score threshold",
+      "category": "Filter by topic or company"
+    },
+    "search_ai_signals": {
+      "description": "Search intelligence signals database by topic or keyword",
+      "keyword": "Keyword to query",
+      "limit": "Maximum items to return"
+    },
+    "trigger_feed_sync": {
+      "description": "Trigger automated fetching and scoring pipeline",
+      "sources": "Optional list of source IDs",
+      "forceScore": "Force re-score existing items"
+    },
+    "get_feed_health": {
+      "description": "Get current health status, success rate, and storage stats of news sources"
+    },
+    "enable_briefing": {
+      "description": "Enable automated morning & evening AI intelligence briefings in the current session via dsh-schedule",
+      "morning": "Morning briefing dispatch time in HH:mm:ss format, defaults to 08:00:00",
+      "evening": "Evening briefing dispatch time in HH:mm:ss format, defaults to 20:00:00",
+      "timeZone": "IANA time zone name (e.g. Asia/Shanghai), defaults to system time zone"
+    },
+    "disable_briefing": {
+      "description": "Disable morning & evening AI briefings for current session to unblock session archiving"
+    },
+    "get_briefing_prompt": {
+      "description": "Retrieve standard prompt template for morning or evening AI briefing generation",
+      "kind": "Briefing kind: morning or evening"
+    }
+  }
+}
